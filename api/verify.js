@@ -2,6 +2,11 @@
 // Env vars: TURSO_URL (https form), TURSO_TOKEN (full access, it writes last_check), VERIFY_SECRET
 
 export default async function handler(req, res) {
+  try { return await main(req, res); }
+  catch (e) { return res.status(500).json({ valid: false, reason: 'server_error', detail: String(e.message || e) }); }
+}
+
+async function main(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-verify-secret');
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -20,7 +25,9 @@ export default async function handler(req, res) {
       ] })
     });
     const j = await r.json();
-    return j.results[0].response.result.rows;
+    const x = j.results && j.results[0];
+    if (!x || x.type === 'error') throw new Error('Turso: ' + (x ? x.error.message : (j.message || r.status)));
+    return x.response.result.rows;
   };
 
   const rows = await run('SELECT url,status,expires_at FROM licenses WHERE key=?', [key]);
