@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>License Manager</title>
+<style>
+:root{--bg:#e8e4dc;--tx:#3a3732;--mu:#857f74;--sh1:#fff9;--sh2:#b9b3a755;--ok:#2f8f5b;--bad:#c0463d;--wn:#b8862b;--ac:#3d5a80}
+@media(prefers-color-scheme:dark){:root{--bg:#2a2926;--tx:#e6e1d6;--mu:#9a9588;--sh1:#3a3935;--sh2:#161513;--ok:#5cc58c;--bad:#ef7b72;--wn:#e0b25a;--ac:#8fb0d9}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.wrap{max-width:900px;margin:0 auto;padding:16px}
+.raised{background:var(--bg);border-radius:18px;box-shadow:7px 7px 14px var(--sh2),-7px -7px 14px var(--sh1)}
+input,select,textarea{width:100%;background:var(--bg);color:var(--tx);border:0;border-radius:12px;padding:11px 14px;font:inherit;box-shadow:inset 4px 4px 8px var(--sh2),inset -4px -4px 8px var(--sh1)}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button{font:inherit;color:var(--tx);background:var(--bg);border:0;border-radius:12px;padding:9px 16px;cursor:pointer;box-shadow:4px 4px 8px var(--sh2),-4px -4px 8px var(--sh1)}
+button:active{box-shadow:inset 3px 3px 6px var(--sh2),inset -3px -3px 6px var(--sh1)}
+button.pri{color:var(--ac);font-weight:600}
+button.ok{color:var(--ok)}button.bad{color:var(--bad)}
+label{display:block;font-size:13px;color:var(--mu);margin:0 0 5px 4px}
+h1{font-size:22px;margin:0}h2{font-size:17px;margin:0 0 12px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:6px 0 16px;flex-wrap:wrap}
+.tabs{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.tabs button.on{box-shadow:inset 3px 3px 6px var(--sh2),inset -3px -3px 6px var(--sh1);color:var(--ac);font-weight:600}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:12px;margin-bottom:16px}
+.stat{padding:12px;text-align:center}.stat b{display:block;font-size:24px}.stat span{font-size:12px;color:var(--mu)}
+.card{padding:18px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.full{grid-column:1/-1}
+.lic{padding:14px;margin-bottom:14px}
+.row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.key{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;word-break:break-all;cursor:pointer}
+.meta{font-size:13px;color:var(--mu);word-break:break-all}
+.pill{font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;box-shadow:inset 2px 2px 4px var(--sh2),inset -2px -2px 4px var(--sh1)}
+.s-active{color:var(--ok)}.s-revoked{color:var(--bad)}.s-expired{color:var(--wn)}
+.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.filters{display:grid;grid-template-columns:1fr 150px 150px;gap:12px;margin-bottom:16px}
+pre{background:var(--bg);box-shadow:inset 4px 4px 8px var(--sh2),inset -4px -4px 8px var(--sh1);border-radius:12px;padding:14px;overflow-x:auto;font-size:12.5px;line-height:1.5;margin:8px 0 12px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0));transform:translateX(-50%);padding:10px 18px;z-index:9}
+.hide{display:none!important}
+.lock{max-width:380px;margin:12vh auto;padding:26px}
+.note{font-size:13px;color:var(--mu)}.s-soon{color:var(--wn)}dialog{border:0;border-radius:18px;background:var(--bg);color:var(--tx);padding:20px;width:min(460px,92vw);box-shadow:7px 7px 14px var(--sh2),-7px -7px 14px var(--sh1)}dialog::backdrop{background:#0007}
+@media(max-width:600px){.grid,.filters{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="lock" class="lock raised hide">
+  <h1 id="lockTitle">License Manager</h1>
+  <p class="note" id="lockHint"></p>
+  <label for="pw">Admin password</label>
+  <input id="pw" type="password" autocomplete="current-password">
+  <div id="pw2box" class="hide" style="margin-top:12px"><label for="pw2">Confirm password</label><input id="pw2" type="password"></div>
+  <p id="lockErr" class="note" style="color:var(--bad)"></p>
+  <button class="pri" id="lockBtn" style="width:100%">Continue</button>
+</div>
+
+<div id="app" class="wrap hide">
+  <div class="top">
+    <div><h1>License Manager</h1><span class="note" id="modeNote"></span></div>
+    <button id="logout">Sign out</button>
+  </div>
+  <div class="tabs">
+    <button data-t="lic" class="on">Licenses</button>
+    <button data-t="int">Integration</button>
+    <button data-t="set">Settings</button>
+  </div>
+
+  <section id="t-lic">
+    <div class="stats">
+      <div class="stat raised"><b id="stT">0</b><span>Total</span></div>
+      <div class="stat raised"><b id="stA" style="color:var(--ok)">0</b><span>Active</span></div>
+      <div class="stat raised"><b id="stR" style="color:var(--bad)">0</b><span>Revoked</span></div>
+      <div class="stat raised"><b id="stE" style="color:var(--wn)">0</b><span>Expired</span></div>
+      <div class="stat raised"><b id="stS" style="color:var(--wn)">0</b><span>Expiring in 14 days</span></div>
+    </div>
+    <div class="card raised">
+      <h2>Issue a new key</h2>
+      <div class="grid">
+        <div><label for="fCust">Customer</label><input id="fCust" placeholder="Customer or company name"></div>
+        <div><label for="fUrl">Target URL(s)</label><input id="fUrl" placeholder="https://portal.vercel.app, https://www.example.com"></div>
+        <div><label for="fPlan">Plan</label><select id="fPlan"><option>Standard</option><option>Pro</option><option>Enterprise</option></select></div>
+        <div><label for="fExp">Expires on (optional)</label><input id="fExp" type="date"></div>
+        <div class="full"><label for="fNote">Note</label><input id="fNote" placeholder="Invoice no., contact, anything useful"></div>
+      </div>
+      <div class="acts"><button class="pri" id="addBtn">Generate key</button></div>
+    </div>
+    <div class="filters">
+      <input id="q" placeholder="Search customer, URL or key">
+      <select id="fs"><option value="">All statuses</option><option>active</option><option>revoked</option><option>expired</option><option value="soon">expiring soon</option></select>
+      <select id="so"><option value="new">Newest first</option><option value="exp">Expiry soonest</option><option value="cust">Customer A-Z</option></select>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <section id="t-int" class="hide">
+    <div class="card raised">
+      <h2>1. Verify endpoint on Vercel</h2>
+      <p class="note">Save as <b>api/verify.js</b> in this license app's Vercel project. Env vars: <b>TURSO_URL</b> (https form), <b>TURSO_TOKEN</b> and <b>VERIFY_SECRET</b>.</p>
+      <pre id="codeApi"></pre><button id="cpApi">Copy endpoint code</button>
+    </div>
+    <div class="card raised">
+      <h2>2. middleware.js in the target portal</h2>
+      <p class="note">Save at the root of the portal project. Env vars: <b>LICENSE_API</b>, <b>VERIFY_SECRET</b> (same as above) and <b>LICENSE_SECRET</b> (random, per portal).</p>
+      <pre id="codeCli"></pre><button id="cpCli">Copy middleware code</button>
+      <p class="note" style="margin-top:14px">Content is blocked on the server until a valid key is entered. Revocation takes effect within about 10 minutes.</p>
+    </div>
+  </section>
+
+  <section id="t-set" class="hide">
+    <div class="card raised">
+      <h2>Turso database</h2>
+      <p class="note">Leave empty to store keys in this browser only. Browser-only data cannot be checked by the verify endpoint.</p>
+      <div class="grid">
+        <div class="full"><label for="sUrl">Database URL</label><input id="sUrl" placeholder="libsql://lm-s-jagadish.aws-ap-south-1.turso.io"></div>
+        <div class="full"><label for="sTok">Auth token</label><input id="sTok" type="eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3OTIwNjcwODMsImlkIjoiMDFhMTNmODUtODMwMS03NTZlLTgxYzktZDQ0OTE4YzNlYzVlIiwia2lkIjoiaGhYdXRxNE1DSm4xVFBPT0Nyd2FXOEFoXy1reGFCWmtjam8yVGhLaHJ6MCIsInJpZCI6IjRmNTQ1OTc4LTQ0MzMtNDMxZi05ZDRkLWJjM2NjYmEzN2UyMyJ9.P-vgTvupVbxvCLY-aheigY7uIQC1X7FGgXSgrumrBv2OWQXWNcfHQvwC9gwTia4xSce1LgEh-wd61uJYxCSgBA"></div>
+      </div>
+      <div class="acts"><button class="pri" id="sSave">Save and connect</button></div>
+    </div>
+    <div class="card raised">
+      <h2>Data</h2>
+      <div class="acts"><button id="exp">Export CSV</button></div>
+    </div>
+    <div class="card raised">
+      <h2>Change admin password</h2>
+      <div class="grid"><div><label for="np">New password</label><input id="np" type="password"></div></div>
+      <div class="acts"><button class="pri" id="npBtn">Update password</button></div>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg">
+  <h2>Edit license</h2>
+  <div class="grid">
+    <div><label for="eCust">Customer</label><input id="eCust"></div>
+    <div><label for="eUrl">Target URL(s)</label><input id="eUrl"></div>
+    <div><label for="ePlan">Plan</label><select id="ePlan"><option>Standard</option><option>Pro</option><option>Enterprise</option></select></div>
+    <div><label for="eExp">Expires on</label><input id="eExp" type="date"></div>
+    <div class="full"><label for="eNote">Note</label><input id="eNote"></div>
+  </div>
+  <div class="acts"><button class="pri" id="eSave">Save changes</button><button id="eCancel">Cancel</button></div>
+</dialog>
+<div id="toast" class="toast raised hide"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const LS=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){return null}};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let cfg=JSON.parse(LS('lm_cfg')||'{}'), rows=[];
+const useTurso=()=>!!(cfg.url&&cfg.token);
+
+function toast(m){const t=$('toast');t.textContent=m;t.classList.remove('hide');clearTimeout(toast.h);toast.h=setTimeout(()=>t.classList.add('hide'),2200)}
+async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+
+/* ---------- data layer ---------- */
+async function tq(sql,args=[]){
+  const base=cfg.url.replace(/^libsql:/,'https:').replace(/\/$/,'');
+  const r=await fetch(base+'/v2/pipeline',{method:'POST',headers:{Authorization:'Bearer '+cfg.token,'Content-Type':'application/json'},
+    body:JSON.stringify({requests:[{type:'execute',stmt:{sql,args:args.map(a=>a==null?{type:'null'}:{type:'text',value:String(a)})}},{type:'close'}]})});
+  const j=await r.json(),x=j.results&&j.results[0];
+  if(!x||x.type==='error')throw new Error(x?x.error.message:'Turso request failed');
+  const res=x.response.result;
+  return res.rows.map(row=>Object.fromEntries(res.cols.map((c,i)=>[c.name,row[i].value])));
+}
+async function initDb(){
+  await tq('CREATE TABLE IF NOT EXISTS licenses(id TEXT PRIMARY KEY,key TEXT UNIQUE,customer TEXT,url TEXT,plan TEXT,status TEXT,created_at TEXT,expires_at TEXT,last_check TEXT,note TEXT)');
+  for(const c of ['checks INTEGER DEFAULT 0','last_host TEXT'])try{await tq('ALTER TABLE licenses ADD COLUMN '+c)}catch(e){}
+}
+async function load(){
+  if(useTurso()){try{rows=await tq('SELECT * FROM licenses ORDER BY created_at DESC');LS('lm_data',JSON.stringify(rows))}catch(e){toast('Cloud unavailable, showing local copy');rows=JSON.parse(LS('lm_data')||'[]')}}
+  else rows=JSON.parse(LS('lm_data')||'[]');
+  render();
+}
+function saveLocal(){LS('lm_data',JSON.stringify(rows))}
+async function insert(r){
+  if(useTurso())await tq('INSERT INTO licenses(id,key,customer,url,plan,status,created_at,expires_at,last_check,note) VALUES(?,?,?,?,?,?,?,?,?,?)',[r.id,r.key,r.customer,r.url,r.plan,r.status,r.created_at,r.expires_at,r.last_check,r.note]);
+  rows.unshift(r);saveLocal();
+}
+async function setStatus(id,s){
+  if(useTurso())await tq('UPDATE licenses SET status=? WHERE id=?',[s,id]);
+  const r=rows.find(x=>x.id===id);if(r)r.status=s;saveLocal();
+}
+async function removeRow(id){
+  if(useTurso())await tq('DELETE FROM licenses WHERE id=?',[id]);
+  rows=rows.filter(x=>x.id!==id);saveLocal();
+}
+
+async function updateRow(id,f){
+  const ks=Object.keys(f);
+  if(useTurso())await tq('UPDATE licenses SET '+ks.map(k=>k+'=?').join(',')+' WHERE id=?',ks.map(k=>f[k]).concat([id]));
+  Object.assign(rows.find(x=>x.id===id),f);saveLocal();
+}
+const parseUrls=s=>{const a=s.split(',').map(x=>x.trim()).filter(Boolean);if(!a.length)return null;try{a.forEach(u=>new URL(u))}catch(e){return null}return a.join(', ')};
+/* ---------- helpers ---------- */
+function genKey(){
+  const cs='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',g=()=>{const a=new Uint8Array(4);crypto.getRandomValues(a);return [...a].map(v=>cs[v%cs.length]).join('')};
+  return 'LIC-'+g()+'-'+g()+'-'+g()+'-'+g();
+}
+const effStatus=r=>r.status==='active'&&r.expires_at&&r.expires_at<new Date().toISOString().slice(0,10)?'expired':r.status;
+const fmt=s=>s?new Date(s).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'-';
+
+/* ---------- render ---------- */
+function render(){
+  const soon=new Date(Date.now()+14*864e5).toISOString().slice(0,10);
+  const all=rows.map(r=>{const e=effStatus(r);return {...r,_s:e,_soon:e==='active'&&!!r.expires_at&&r.expires_at<=soon}});
+  const n=f=>all.filter(f).length;
+  $('stT').textContent=all.length;$('stA').textContent=n(r=>r._s==='active');
+  $('stR').textContent=n(r=>r._s==='revoked');$('stE').textContent=n(r=>r._s==='expired');$('stS').textContent=n(r=>r._soon);
+  $('modeNote').textContent=useTurso()?'Storage: Turso cloud':'Storage: this browser only';
+  const q=$('q').value.toLowerCase(),fs=$('fs').value,so=$('so').value;
+  const v=all.filter(r=>(!fs||(fs==='soon'?r._soon:r._s===fs))&&(!q||[r.customer,r.url,r.key].join(' ').toLowerCase().includes(q)));
+  v.sort((a,b)=>so==='exp'?(a.expires_at||'9999').localeCompare(b.expires_at||'9999'):so==='cust'?a.customer.localeCompare(b.customer):b.created_at.localeCompare(a.created_at));
+  $('list').innerHTML=v.length?v.map(r=>{
+    const d=r.expires_at?Math.ceil((new Date(r.expires_at)-Date.now())/864e5):null;
+    const id=esc(r.id);
+    return `<div class="lic raised">
+    <div class="row"><div><div class="key" data-copy="${esc(r.key)}" title="Tap to copy">${esc(r.key)}</div>
+      <div class="meta">${esc(r.customer)} · ${esc(r.plan)}</div></div>
+      <span class="pill s-${r._soon?'soon':r._s}">${r._soon?'expiring in '+Math.max(d,0)+'d':r._s}</span></div>
+    <div class="meta" style="margin-top:8px">${esc(r.url)}</div>
+    <div class="meta">Issued ${fmt(r.created_at)} · Expires ${r.expires_at?fmt(r.expires_at):'never'} · ${r.checks||0} checks${r.last_check?', last '+fmt(r.last_check)+(r.last_host?' from '+esc(r.last_host):''):''}</div>
+    ${r.note?`<div class="meta">${esc(r.note)}</div>`:''}
+    <div class="acts">
+      ${r.status==='revoked'?`<button class="ok" data-a="active" data-id="${id}">Activate</button>`:`<button class="bad" data-a="revoked" data-id="${id}">Revoke</button>`}
+      <button data-a="edit" data-id="${id}">Edit</button>
+      <button data-a="x30" data-id="${id}">+30 days</button>
+      <button data-a="x365" data-id="${id}">+1 year</button>
+      <button data-a="copy" data-id="${id}">Copy key</button>
+      <button data-a="del" data-id="${id}">Delete</button>
+    </div></div>`}).join(''):'<div class="card raised note">No licenses match. Issue a key above or change the filters.</div>';
+}
+
+/* ---------- events ---------- */
+$('addBtn').onclick=async()=>{
+  const customer=$('fCust').value.trim(),url=$('fUrl').value.trim();
+  if(!customer||!url)return toast('Enter customer and target URL');
+  const urls=parseUrls(url);if(!urls)return toast('Enter valid URLs starting with https://, separated by commas');
+  const r={id:crypto.randomUUID(),key:genKey(),customer,url:urls,plan:$('fPlan').value,status:'active',created_at:new Date().toISOString(),expires_at:$('fExp').value||'',last_check:'',note:$('fNote').value.trim()};
+  try{await insert(r);['fCust','fUrl','fExp','fNote'].forEach(i=>$(i).value='');render();toast('Key created: '+r.key);}catch(e){toast('Save failed: '+e.message)}
+};
+$('list').onclick=async e=>{
+  const k=e.target.closest('[data-copy]');
+  if(k){navigator.clipboard.writeText(k.dataset.copy);return toast('Key copied')}
+  const b=e.target.closest('button[data-a]');if(!b)return;
+  const id=b.dataset.id,a=b.dataset.a,r=rows.find(x=>x.id===id);
+  try{
+    if(a==='edit'){openEdit(r);return}
+    if(a==='x30'||a==='x365'){
+      const t=new Date().toISOString().slice(0,10),base=r.expires_at&&r.expires_at>t?r.expires_at:t,dt=new Date(base);
+      if(a==='x30')dt.setDate(dt.getDate()+30);else dt.setFullYear(dt.getFullYear()+1);
+      const ne=dt.toISOString().slice(0,10);await updateRow(id,{expires_at:ne});
+      if(r.status==='expired')await setStatus(id,'active');render();toast('Now expires '+fmt(ne));return}
+    if(a==='copy'){navigator.clipboard.writeText(r.key);toast('Key copied');return}
+    if(a==='del'){if(!confirm('Delete this license permanently? Revoke keeps the record.'))return;await removeRow(id);toast('Deleted')}
+    else{await setStatus(id,a);toast(a==='active'?'Activated':'Revoked')}
+    render();
+  }catch(err){toast('Failed: '+err.message)}
+};
+$('q').oninput=$('fs').onchange=$('so').onchange=render;
+let editId=null;
+function openEdit(r){editId=r.id;$('eCust').value=r.customer;$('eUrl').value=r.url;$('ePlan').value=r.plan;$('eExp').value=r.expires_at||'';$('eNote').value=r.note||'';$('dlg').showModal()}
+$('eCancel').onclick=()=>$('dlg').close();
+$('eSave').onclick=async()=>{
+  const urls=parseUrls($('eUrl').value),c=$('eCust').value.trim();
+  if(!c||!urls)return toast('Customer and valid URLs are required');
+  try{await updateRow(editId,{customer:c,url:urls,plan:$('ePlan').value,expires_at:$('eExp').value||'',note:$('eNote').value.trim()});$('dlg').close();render();toast('Saved')}catch(e){toast('Save failed: '+e.message)}
+};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  ['lic','int','set'].forEach(t=>$('t-'+t).classList.toggle('hide',t!==b.dataset.t));
+});
+$('sSave').onclick=async()=>{
+  cfg={url:$('sUrl').value.trim(),token:$('sTok').value.trim()};LS('lm_cfg',JSON.stringify(cfg));
+  if(useTurso()){try{await initDb();toast('Connected to Turso')}catch(e){toast('Connection failed: '+e.message)}}
+  await load();
+};
+$('exp').onclick=()=>{
+  const h=['key','customer','url','plan','status','created_at','expires_at','last_check','checks','last_host','note'];
+  const csv=[h.join(',')].concat(rows.map(r=>h.map(c=>'"'+String(r[c]??'').replace(/"/g,'""')+'"').join(','))).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='licenses.csv';a.click();
+};
+$('npBtn').onclick=async()=>{const p=$('np').value;if(p.length<6)return toast('Use at least 6 characters');LS('lm_hash',await sha(p));$('np').value='';toast('Password updated')};
+$('logout').onclick=()=>{sessionStorage.removeItem('lm_auth');location.reload()};
+
+/* ---------- integration code ---------- */
+const API=["// License app project: api/verify.js (replaces the earlier version)", "// Env vars: TURSO_URL (https form), TURSO_TOKEN (full access, it writes last_check), VERIFY_SECRET", "", "export default async function handler(req, res) {", "  res.setHeader('Access-Control-Allow-Origin', '*');", "  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-verify-secret');", "  if (req.method === 'OPTIONS') return res.status(204).end();", "", "  const src = req.method === 'POST' ? (req.body || {}) : req.query;", "  const key = String(src.key || '').trim().toUpperCase();", "  if (!key) return res.status(400).json({ valid: false, reason: 'missing_key' });", "", "  const run = async (sql, args) => {", "    const r = await fetch(process.env.TURSO_URL + '/v2/pipeline', {", "      method: 'POST',", "      headers: { Authorization: 'Bearer ' + process.env.TURSO_TOKEN, 'Content-Type': 'application/json' },", "      body: JSON.stringify({ requests: [", "        { type: 'execute', stmt: { sql, args: args.map(v => ({ type: 'text', value: v })) } },", "        { type: 'close' }", "      ] })", "    });", "    const j = await r.json();", "    return j.results[0].response.result.rows;", "  };", "", "  const rows = await run('SELECT url,status,expires_at FROM licenses WHERE key=?', [key]);", "  if (!rows.length) return res.json({ valid: false, reason: 'not_found' });", "  const [url, status, exp] = rows[0].map(c => c.value);", "", "  // Server-to-server calls (portal middleware) send the secret and the real host.", "  // Browser calls fall back to the Origin header.", "  const trusted = process.env.VERIFY_SECRET && req.headers['x-verify-secret'] === process.env.VERIFY_SECRET;", "  let host = '';", "  if (trusted) host = String(src.host || '');", "  else if (req.headers.origin) { try { host = new URL(req.headers.origin).host; } catch (e) {} }", "", "  const hostOk = !!host && url.split(',').some(u => { try { return new URL(u.trim()).host === host; } catch (e) { return false; } });", "  const expired = exp && exp < new Date().toISOString().slice(0, 10);", "  const valid = status === 'active' && !expired && hostOk;", "", "  if (valid) { try { await run('UPDATE licenses SET last_check=?, last_host=?, checks=COALESCE(checks,0)+1 WHERE key=?', [new Date().toISOString(), host, key]); } catch (e) {} }", "  res.json({ valid, reason: valid ? 'ok' : status !== 'active' ? status : expired ? 'expired' : 'wrong_site' });", "}"].join('\n');
+const CLI=["// Place at the ROOT of the target portal project (next to index.html).", "// Env vars (target portal project):", "//   LICENSE_API     https://YOUR-LICENSE-APP.vercel.app/api/verify", "//   VERIFY_SECRET   same value as in the license app", "//   LICENSE_SECRET  any long random string (signs the cookie)", "", "const TTL = 600; // seconds a valid check is trusted before re-verifying (revocation delay)", "const enc = new TextEncoder();", "", "const next = () => new Response(null, { headers: { 'x-middleware-next': '1' } });", "", "async function sign(s) {", "  const k = await crypto.subtle.importKey('raw', enc.encode(process.env.LICENSE_SECRET),", "    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);", "  const b = await crypto.subtle.sign('HMAC', k, enc.encode(s));", "  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');", "}", "", "// true = valid, false = rejected, null = license server unreachable", "async function check(key, host) {", "  try {", "    const r = await fetch(process.env.LICENSE_API, {", "      method: 'POST',", "      headers: { 'Content-Type': 'application/json', 'x-verify-secret': process.env.VERIFY_SECRET },", "      body: JSON.stringify({ key, host })", "    });", "    if (!r.ok) return null;", "    return (await r.json()).valid === true;", "  } catch (e) { return null; }", "}", "", "async function cookieFor(key) {", "  const exp = Math.floor(Date.now() / 1000) + TTL;", "  return key + '.' + exp + '.' + await sign(key + '.' + exp);", "}", "const setCookie = v => 'lic=' + v + '; Path=/; Max-Age=2592000; HttpOnly; Secure; SameSite=Lax';", "const clearCookie = 'lic=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax';", "", "function gate(msg, clear) {", "  const esc = s => s.replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));", "  const html = '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">' +", "    '<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>License required</title>' +", "    '<style>:root{--bg:#e8e4dc;--tx:#3a3732;--s1:#fff9;--s2:#b9b3a755}' +", "    '@media(prefers-color-scheme:dark){:root{--bg:#2a2926;--tx:#e6e1d6;--s1:#3a3935;--s2:#161513}}' +", "    'body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--bg);color:var(--tx);font:15px system-ui,sans-serif}' +", "    'form{width:min(360px,90vw);padding:26px;border-radius:18px;box-shadow:7px 7px 14px var(--s2),-7px -7px 14px var(--s1)}' +", "    'h1{font-size:20px;margin:0 0 6px}p{margin:0 0 14px;opacity:.7;font-size:13px}' +", "    'input{width:100%;box-sizing:border-box;padding:11px 14px;border:0;border-radius:12px;background:var(--bg);color:var(--tx);font:inherit;' +", "    'box-shadow:inset 4px 4px 8px var(--s2),inset -4px -4px 8px var(--s1)}' +", "    'button{width:100%;margin-top:14px;padding:10px;border:0;border-radius:12px;background:var(--bg);color:var(--tx);font:inherit;font-weight:600;cursor:pointer;' +", "    'box-shadow:4px 4px 8px var(--s2),-4px -4px 8px var(--s1)}.e{color:#c0463d;opacity:1}</style></head><body>' +", "    '<form method=\"POST\" action=\"/__license\"><h1>Enter your license key</h1>' +", "    '<p class=\"e\">' + esc(msg || '') + '</p>' +", "    '<input name=\"key\" placeholder=\"LIC-XXXX-XXXX-XXXX-XXXX\" autocomplete=\"off\" required autofocus>' +", "    '<button type=\"submit\">Unlock</button></form></body></html>';", "  const h = { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' };", "  if (clear) h['Set-Cookie'] = clearCookie;", "  return new Response(html, { status: 401, headers: h });", "}", "", "export default async function middleware(req) {", "  const url = new URL(req.url);", "  const host = url.host;", "", "  // Key submitted from the gate page", "  if (url.pathname === '/__license' && req.method === 'POST') {", "    const key = String((await req.formData()).get('key') || '').trim().toUpperCase();", "    const ok = await check(key, host);", "    if (ok === true) {", "      return new Response(null, { status: 303, headers: { Location: '/', 'Set-Cookie': setCookie(await cookieFor(key)) } });", "    }", "    return gate(ok === null ? 'License server unreachable. Try again shortly.' : 'This key is not valid for this site.');", "  }", "", "  // Existing session cookie", "  const m = (req.headers.get('cookie') || '').match(/(?:^|;\\s*)lic=([^;]+)/);", "  if (m) {", "    const [key, exp, sig] = m[1].split('.');", "    if (key && exp && sig && sig === await sign(key + '.' + exp)) {", "      if (+exp > Math.floor(Date.now() / 1000)) return next();     // still fresh", "      const ok = await check(key, host);                            // stale: re-verify", "      if (ok === null) return next();                               // license server down: grace", "      if (ok === true) {", "        if (req.method !== 'GET') return next();", "        return new Response(null, { status: 307, headers: { Location: req.url, 'Set-Cookie': setCookie(await cookieFor(key)) } });", "      }", "      return gate('This license was revoked or has expired.', true);", "    }", "  }", "  return gate('');", "}", "", "export const config = { matcher: '/((?!_vercel|favicon.ico).*)' };"].join('\n');
+$('codeApi').textContent=API;$('codeCli').textContent=CLI;
+$('cpApi').onclick=()=>{navigator.clipboard.writeText(API);toast('Copied')};
+$('cpCli').onclick=()=>{navigator.clipboard.writeText(CLI);toast('Copied')};
+
+/* ---------- auth ---------- */
+async function start(){
+  $('lock').classList.add('hide');$('app').classList.remove('hide');
+  $('sUrl').value=cfg.url||'';$('sTok').value=cfg.token||'';
+  if(useTurso()){try{await initDb()}catch(e){toast('Cloud error: '+e.message)}}
+  load();
+}
+function showLock(){
+  const first=!LS('lm_hash');
+  $('lock').classList.remove('hide');
+  $('lockHint').textContent=first?'First run: set an admin password for this browser.':'Sign in to manage licenses.';
+  $('pw2box').classList.toggle('hide',!first);
+  $('lockBtn').onclick=async()=>{
+    const p=$('pw').value;$('lockErr').textContent='';
+    if(first){if(p.length<6)return $('lockErr').textContent='Use at least 6 characters.';
+      if(p!==$('pw2').value)return $('lockErr').textContent='Passwords do not match.';
+      LS('lm_hash',await sha(p));}
+    else if(await sha(p)!==LS('lm_hash'))return $('lockErr').textContent='Wrong password.';
+    sessionStorage.setItem('lm_auth','1');start();
+  };
+  $('pw').onkeydown=e=>{if(e.key==='Enter')$('lockBtn').click()};
+}
+sessionStorage.getItem('lm_auth')?start():showLock();
+</script>
+</body>
+</html>
